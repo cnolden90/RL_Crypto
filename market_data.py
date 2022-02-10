@@ -81,6 +81,10 @@ result = pd.concat(frames, ignore_index=False)
 coin_dataframes['complete_df'] = result
 
 
-#Twitter sentiment
-#Weeks after Listing
-#Bitcoin dominance
+# Twitter sentiment
+# reddit sentiment
+# google sentiment
+# fear and greed stocks
+# Bitcoin dominance
+# Weeks after Listing
+# Upcoming events
