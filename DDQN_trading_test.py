@@ -48,7 +48,7 @@ trading_cost_bps = 1e-3
 time_cost_bps = 1e-4
 
 trading_environment = gym.make('trading-v0',
-                               coins=['EOS'],
+                               coins=['EOS','ADA','SOL','TRX'],
                                trading_days=trading_days,
                                trading_cost_bps=trading_cost_bps,
                                time_cost_bps=time_cost_bps)
