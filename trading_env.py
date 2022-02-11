@@ -17,9 +17,9 @@ log.info('%s logger started.', __name__)
 
 
 class MarketData:
-    def __init__(self, trading_days=252, coins=['EOS'], normalize=True, path='', date_min = '2020-01-01', date_max = '2021-12-31', taIndicator=False):
+    def __init__(self, trading_units=252, coins=['EOS'], normalize=True, path='', date_min = '2020-01-01', date_max = '2021-12-31', taIndicator=False):
             self.coins = coins
-            self.trading_days = trading_days
+            self.trading_units = trading_units
             self.normalize = normalize
             self.path = path
             self.datemin = date_min
@@ -61,13 +61,13 @@ class MarketData:
 
             """calculate returns and TA, then removes missing values"""
             if self.taIndicator:
-                ohclv['returns'] = ohclv['close'].pct_change()
                 ohclv['ret_2'] = ohclv['close'].pct_change(2)
                 ohclv['ret_5'] = ohclv['close'].pct_change(5)
                 ohclv['ret_10'] = ohclv['close'].pct_change(10)
                 ohclv['ret_21'] = ohclv['close'].pct_change(21)
                 ohclv['rsi'] = pta.rsi(ohclv['close'], length=14)
                 ohclv = (ohclv.replace((np.inf, -np.inf), np.nan).dropna())
+            ohclv['returns'] = ohclv['close'].pct_change()
 
             """ loads marketcap data for coin """
             marketcap = pd.read_csv('%s/%s-usd-max.csv' % (self.path, coin))
@@ -117,8 +117,8 @@ class MarketData:
         self.data = self.data.drop('date_time', axis=1)
 
         """ not scaling pairs, time, FGI, """
-        df_not_scale = self.data[['pair','dayOfWeek_sin','dayOfWeek_cos','dayInYear_sin','dayInYear_cos','timeOfDay_sin','timeOfDay_cos','monthInYear_sin','monthInYear_cos', 'classification_index']].copy()
-        self.data = self.data.drop(['pair','dayOfWeek_sin','dayOfWeek_cos','dayInYear_sin','dayInYear_cos','timeOfDay_sin','timeOfDay_cos','monthInYear_sin','monthInYear_cos', 'classification_index'], axis=1)
+        df_not_scale = self.data[['returns','pair','dayOfWeek_sin','dayOfWeek_cos','dayInYear_sin','dayInYear_cos','timeOfDay_sin','timeOfDay_cos','monthInYear_sin','monthInYear_cos', 'classification_index']].copy()
+        self.data = self.data.drop(['returns','pair','dayOfWeek_sin','dayOfWeek_cos','dayInYear_sin','dayInYear_cos','timeOfDay_sin','timeOfDay_cos','monthInYear_sin','monthInYear_cos', 'classification_index'], axis=1)
 
         """ scale OHCLV, MC & TA """
         if self.normalize:
@@ -129,15 +129,25 @@ class MarketData:
 
     def reset(self):
         """Provides starting index for time series and resets step"""
-        high = len(self.data.index) - self.trading_days
+        high = len(self.data.index) - self.trading_units
         self.offset = np.random.randint(low=0, high=high)
         self.step = 0
 
     def take_step(self):
         """Returns data for current trading day and done signal"""
+
         obs = self.data.iloc[self.offset + self.step].values
         self.step += 1
-        done = self.step > self.trading_days
+        done = self.step > self.trading_units
+#        if(self.step < 6):
+#            test = (self.step) -1
+#            print('TAKES STEP2')
+#            print('Step: ' + str(test))
+#            print(self.offset + self.step)
+#            print(obs)
+#           print(self.data.columns)
+
+#            print(obs[0])
         return obs, done
 
 
@@ -177,23 +187,24 @@ class CryptoBot_Simulator:
             based on an action and latest market return
             and returns the reward and a summary of the day's activity. """
 
+
         start_position = self.positions[max(0, self.step - 1)]
         start_nav = self.navs[max(0, self.step - 1)]
         start_market_nav = self.market_navs[max(0, self.step - 1)]
         self.market_returns[self.step] = market_return
         self.actions[self.step] = action
-
         end_position = action - 1  # short, neutral, long
         n_trades = end_position - start_position
         self.positions[self.step] = end_position
         self.trades[self.step] = n_trades
-
         # roughly value based since starting NAV = 1
         trade_costs = abs(n_trades) * self.trading_cost_bps
         time_cost = 0 if n_trades else self.time_cost_bps
         self.costs[self.step] = trade_costs + time_cost
         reward = start_position * market_return - self.costs[self.step]
         self.strategy_returns[self.step] = reward
+
+
 
         if self.step != 0:
             self.navs[self.step] = start_nav * (1 + self.strategy_returns[self.step])
@@ -202,8 +213,22 @@ class CryptoBot_Simulator:
         info = {'reward': reward,
                 'nav'   : self.navs[self.step],
                 'costs' : self.costs[self.step]}
-
+#        if(self.step <6):
+#            print('Action %s' % action)
+#            print('end_position %s' % end_position)
+#            print(self.navs)
+#            print('start position %s' % start_position)
+#            print('start nav %s' % start_nav)
+#            print('start_market_nav nav %s' % start_market_nav)
+#            print('market_returns[self.step %s' % self.market_returns[self.step])
+#            print(n_trades)
+#            print(self.positions[self.step] )
+#            print(self.trades[self.step])
+#            print(self.navs[self.step])
+#            print(self.market_navs[self.step])
+#            print(self.strategy_returns[self.step])
         self.step += 1
+
         return reward, info
 
     def result(self):
@@ -238,7 +263,7 @@ class CryptoBot_Environment(gym.Env):
 
     def __init__(self,
                  filepath,
-                 trading_days=252,
+                 trading_units=252,
                  trading_cost_bps=1e-3,
                  time_cost_bps=1e-4,
                  coins=['EOS'],
@@ -246,14 +271,14 @@ class CryptoBot_Environment(gym.Env):
                  date_max = '2021-12-31',
                  taIndicator=False
                  ):
-        self.trading_days = trading_days
+        self.trading_units = trading_units
         self.trading_cost_bps = trading_cost_bps
         self.coins = coins
         self.time_cost_bps = time_cost_bps
-        self.data_source = MarketData(trading_days=self.trading_days,
+        self.data_source = MarketData(trading_units=self.trading_units,
                                       coins=coins,date_min = date_min, date_max = date_max, taIndicator=taIndicator, path=filepath)
         self.data_source.data = self.data_source.data.select_dtypes(include=np.number)
-        self.simulator = CryptoBot_Simulator(steps=self.trading_days,
+        self.simulator = CryptoBot_Simulator(steps=self.trading_units,
                                           trading_cost_bps=self.trading_cost_bps,
                                           time_cost_bps=self.time_cost_bps)
         self.action_space = spaces.Discrete(3)
@@ -267,9 +292,10 @@ class CryptoBot_Environment(gym.Env):
     def step(self, action):
         """Returns state observation, reward, done and info"""
         assert self.action_space.contains(action), '{} {} invalid'.format(action, type(action))
+#        print('TAKES STEP1')
         observation, done = self.data_source.take_step()
         reward, info = self.simulator.take_step(action=action,
-                                                market_return=observation[0])
+                                                market_return=observation[11])
         return observation, reward, done, info
 
     def reset(self):
