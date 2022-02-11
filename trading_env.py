@@ -4,7 +4,6 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import scale
 import pandas_ta as pta
-import fear_and_greed
 
 #import gym
 #import tempfile
@@ -67,9 +66,8 @@ class MarketData:
                 ohclv['ret_2'] = ohclv['close'].pct_change(2)
                 ohclv['ret_5'] = ohclv['close'].pct_change(5)
                 ohclv['ret_10'] = ohclv['close'].pct_change(10)
-                ohclv['ret_21'] = ohclv['close'].pct_changept(21)
+                ohclv['ret_21'] = ohclv['close'].pct_change(21)
                 ohclv['rsi'] = pta.rsi(ohclv['close'], length=14)
-                ohclv['macd'] = pta.macd(ohclv['close'])
                 ohclv = (ohclv.replace((np.inf, -np.inf), np.nan).dropna())
 
             """ loads marketcap data for coin """
@@ -147,4 +145,4 @@ class MarketData:
         return obs, done
 
 class main:
-    test = MarketData(coins=['EOS','ADA','SOL','TRX'], path = 'C:/Users/noldec/Desktop/binance')
+    test = MarketData(coins=['EOS','ADA','SOL','TRX'], path = 'C:/Users/noldec/Desktop/binance', taIndicator=True)
