@@ -143,7 +143,7 @@ class MarketData:
         self.step = 0
 
     def take_step(self):
-        """Returns data for current trading day and done signal"""
+        """Returns data for current trading units and done signal"""
         obs = self.data.iloc[self.offset + self.step].values
         self.step += 1
         done = self.step > self.trading_days
