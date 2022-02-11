@@ -57,7 +57,5 @@ trading_environment = gym.make('trading-v0',
 trading_environment.seed(42)
 
 state_dim = trading_environment.observation_space.shape[0]
-print(trading_environment.observation_space.shape)
 num_actions = trading_environment.action_space.n
 max_episode_steps = trading_environment.spec.max_episode_steps
-print(max_episode_steps)

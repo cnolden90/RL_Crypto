@@ -77,7 +77,7 @@ class MarketData:
 
             """ merge OHCLV & FEAR AND GREED INDEX (Crypto) """
             merged_df=pd.merge((pd.merge(ohclv,fng_index, how='inner', left_index=True, right_index=True)), marketcap, how='inner', left_index=True, right_index=True)
-            #merged_df['pair'] = '%s_USDT' % coin
+            merged_df['pair'] = '%s_USDT' % coin
             coin_dataframes[df_name] = merged_df
             log.info('got data for {}...'.format(coin))
 
@@ -117,8 +117,8 @@ class MarketData:
         self.data = self.data.drop('date_time', axis=1)
 
         """ not scaling pairs, time, FGI, """
-        df_not_scale = self.data[['dayOfWeek_sin','dayOfWeek_cos','dayInYear_sin','dayInYear_cos','timeOfDay_sin','timeOfDay_cos','monthInYear_sin','monthInYear_cos', 'classification_index']].copy()
-        self.data = self.data.drop(['dayOfWeek_sin','dayOfWeek_cos','dayInYear_sin','dayInYear_cos','timeOfDay_sin','timeOfDay_cos','monthInYear_sin','monthInYear_cos', 'classification_index'], axis=1)
+        df_not_scale = self.data[['pair','dayOfWeek_sin','dayOfWeek_cos','dayInYear_sin','dayInYear_cos','timeOfDay_sin','timeOfDay_cos','monthInYear_sin','monthInYear_cos', 'classification_index']].copy()
+        self.data = self.data.drop(['pair','dayOfWeek_sin','dayOfWeek_cos','dayInYear_sin','dayInYear_cos','timeOfDay_sin','timeOfDay_cos','monthInYear_sin','monthInYear_cos', 'classification_index'], axis=1)
 
         """ scale OHCLV, MC & TA """
         if self.normalize:
@@ -126,7 +126,6 @@ class MarketData:
                                      columns=self.data.columns,
                                      index=self.data.index)
         self.data = pd.concat([self.data, df_not_scale], axis=1)
-        print(self.data.shape)
 
     def reset(self):
         """Provides starting index for time series and resets step"""
@@ -253,6 +252,7 @@ class CryptoBot_Environment(gym.Env):
         self.time_cost_bps = time_cost_bps
         self.data_source = MarketData(trading_days=self.trading_days,
                                       coins=coins,date_min = date_min, date_max = date_max, taIndicator=taIndicator, path=filepath)
+        self.data_source.data = self.data_source.data.select_dtypes(include=np.number)
         self.simulator = CryptoBot_Simulator(steps=self.trading_days,
                                           trading_cost_bps=self.trading_cost_bps,
                                           time_cost_bps=self.time_cost_bps)
@@ -260,7 +260,6 @@ class CryptoBot_Environment(gym.Env):
         self.observation_space = spaces.Box(self.data_source.min_values,
                                             self.data_source.max_values)
         self.reset()
-
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
