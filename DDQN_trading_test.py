@@ -48,10 +48,12 @@ trading_cost_bps = 1e-3
 time_cost_bps = 1e-4
 
 trading_environment = gym.make('trading-v0',
+                               filepath='C:/Users/noldec/Desktop/binance',
                                coins=['EOS','ADA','SOL','TRX'],
                                trading_days=trading_days,
                                trading_cost_bps=trading_cost_bps,
-                               time_cost_bps=time_cost_bps)
+                               time_cost_bps=time_cost_bps
+                               )
 trading_environment.seed(42)
 
 state_dim = trading_environment.observation_space.shape[0]
