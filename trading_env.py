@@ -3,6 +3,8 @@ import datetime
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import scale
+import pandas_ta as pta
+
 #import gym
 #import tempfile
 #from gym import spaces
@@ -34,7 +36,7 @@ class MarketData:
 
     def load_data(self):
         coin_dataframes = {}
-        #FGI Crypto
+        """ loads FEAR AND GREED for Crypto """
         fng_index = pd.read_csv('%s/data.csv' % self.path)
         fng_index['date'] = fng_index['date'].apply(lambda x: datetime.datetime.strptime(x, "%d-%m-%Y").strftime("%Y-%m-%d"))
         fng_index['date'] = pd.to_datetime(fng_index['date'])
@@ -42,18 +44,19 @@ class MarketData:
         fng_index = fng_index.set_index('date')
         fng_index = fng_index.drop('classification', axis=1)
 
-        #FGI Stocks
+        """ loads FEAR AND GREED for Stocks """
 
-        #BTC Dominance
+        """ loads BTC Dominance """
 
-        # Load OHCLV
+        """ load OHCLV  for coins """
         for coin in self.coins:
             log.info('loading data for {}...'.format(coin))
+            """loads OHCLV data for coin and creates key for df dic"""
             df_name = 'df_'+ coin
             ohclv = pd.read_json('%s/%s_USDT-5m.json' % (self.path, coin))
             ohclv.columns =['date_raw','open', 'high', 'low', 'close','volume']
 
-            #OHCLV
+            """prepare OHCLV data"""
             ohclv['date_time'] = ohclv['date_raw'].apply(lambda x: datetime.datetime.fromtimestamp(x/1000).strftime('%Y-%m-%d %H:%M:%S.%f'))
             ohclv['date_time'] = pd.to_datetime(ohclv['date_time'])
             ohclv['date'] = ohclv['date_raw'].apply(lambda x: datetime.datetime.fromtimestamp(x/1000).strftime('%Y-%m-%d'))
@@ -61,44 +64,54 @@ class MarketData:
             ohclv = ohclv[(ohclv['date'] > pd.to_datetime(self.datemin)) & (ohclv['date'] < pd.to_datetime(self.datemax))  ]
             ohclv = ohclv.set_index('date')
 
-            #Marketcap
+            """calculate returns and TA, then removes missing values"""
+            if self.taIndicator:
+                ohclv['returns'] = ohclv['close'].pct_change()
+                ohclv['ret_2'] = ohclv['close'].pct_change(2)
+                ohclv['ret_5'] = ohclv['close'].pct_change(5)
+                ohclv['ret_10'] = ohclv['close'].pct_change(10)
+                ohclv['ret_21'] = ohclv['close'].pct_changept(21)
+                ohclv['rsi'] = pta.rsi(ohclv['close'], length=14)
+                ohclv['macd'] = pta.macd(ohclv['close'])
+                ohclv = (ohclv.replace((np.inf, -np.inf), np.nan).dropna())
+
+            """ loads marketcap data for coin """
             marketcap = pd.read_csv('%s/%s-usd-max.csv' % (self.path, coin))
             marketcap['date'] = marketcap['snapped_at'].apply(lambda x: datetime.datetime.strptime(x[:-4], '%Y-%m-%d %H:%M:%S'))
             marketcap['date'] = pd.to_datetime(marketcap['date'])
             marketcap = marketcap.set_index('date')
 
-            # Merge OHCLV & FNG
+            """ merge OHCLV & FEAR AND GREED INDEX (Crypto) """
             merged_df=pd.merge((pd.merge(ohclv,fng_index, how='inner', left_index=True, right_index=True)), marketcap, how='inner', left_index=True, right_index=True)
             merged_df['pair'] = '%s_USDT' % coin
             coin_dataframes[df_name] = merged_df
             log.info('got data for {}...'.format(coin))
 
-        frames = [coin_dataframes['df_EOS'], coin_dataframes['df_ADA'], coin_dataframes['df_TRX'], coin_dataframes['df_SOL']]
+        frames = []
+        for coins in coin_dataframes.keys():
+            frames.append(coin_dataframes[coins])
         df = pd.concat(frames, ignore_index=False)
         return df
 
     def preprocess_data(self):
-        """calculate returns and percentiles, then removes missing values"""
-
-        #Cylicial Feature Encoding
-        #https://towardsdatascience.com/cyclical-features-encoding-its-about-time-ce23581845ca
+        """ cylicial feature encoding following: https://towardsdatascience.com/cyclical-features-encoding-its-about-time-ce23581845ca"""
         self.data['dayOfWeek'] = self.data.index.dayofweek
         self.data['dayOfWeek_sin'] = np.sin(2 * np.pi * self.data['dayOfWeek']/self.data["dayOfWeek"].max())
         self.data['dayOfWeek_cos'] = np.cos(2 * np.pi * self.data['dayOfWeek']/self.data["dayOfWeek"].max())
-        #Date cos & sin
+        """ Date cos & sin """
         self.data['dayInYear'] = self.data['date_time'].apply(lambda x: int(x.strftime('%j')))
         self.data['dayInYear_sin'] = np.sin(2 * np.pi * self.data['dayInYear']/self.data["dayInYear"].max())
         self.data['dayInYear_cos'] = np.cos(2 * np.pi * self.data['dayInYear']/self.data["dayInYear"].max())
-        #Time cos & sin
+        """ Time cos & sin """
         self.data["timeOfDay"] = (self.data['date_time'].dt.hour*60) + self.data['date_time'].dt.minute
         self.data['timeOfDay_sin'] = np.sin(2 * np.pi * self.data['timeOfDay']/self.data['timeOfDay'].max())
         self.data['timeOfDay_cos'] = np.cos(2 * np.pi * self.data['timeOfDay']/self.data['timeOfDay'].max())
-        #Month cos & sin
+        """ Month cos & sin """
         self.data["monthInYear"] = self.data['date_time'].dt.month
         self.data['monthInYear_sin'] = np.sin(2 * np.pi * self.data['monthInYear']/self.data['monthInYear'].max())
         self.data['monthInYear_cos'] = np.cos(2 * np.pi * self.data['monthInYear']/self.data['monthInYear'].max())
 
-        # Clean dataframe
+        """ clean dataframe """
         self.data = self.data.drop('snapped_at', axis=1)
         self.data = self.data.drop('total_volume', axis=1)
         self.data = self.data.drop('price', axis=1)
@@ -109,34 +122,18 @@ class MarketData:
         self.data = self.data.drop('dayInYear', axis=1)
         self.data = self.data.drop('date_time', axis=1)
 
-#        if self.taIndicator:
-#            self.data['returns'] = self.data.close.pct_change()
-#            self.data['ret_2'] = self.data.close.pct_change(2)
-#            self.data['ret_5'] = self.data.close.pct_change(5)
-#            self.data['ret_10'] = self.data.close.pct_change(10)
-#            self.data['ret_21'] = self.data.close.pct_change(21)
-#            self.data['rsi'] = talib.STOCHRSI(self.data.close)[1]
-#            self.data['macd'] = talib.MACD(self.data.close)[1]
-#            self.data['atr'] = talib.ATR(self.data.high, self.data.low, self.data.close)
-#
-#            slowk, slowd = talib.STOCH(self.data.high, self.data.low, self.data.close)
-#            self.data['stoch'] = slowd - slowk
-#            self.data['atr'] = talib.ATR(self.data.high, self.data.low, self.data.close)
-#            self.data['ultosc'] = talib.ULTOSC(self.data.high, self.data.low, self.data.close)
+        """ not scaling pairs, time, FGI, """
+        df_not_scale = self.data[['pair','dayOfWeek_sin','dayOfWeek_cos','dayInYear_sin','dayInYear_cos','timeOfDay_sin','timeOfDay_cos','monthInYear_sin','monthInYear_cos', 'classification_index']].copy()
+        self.data = self.data.drop(['pair','dayOfWeek_sin','dayOfWeek_cos','dayInYear_sin','dayInYear_cos','timeOfDay_sin','timeOfDay_cos','monthInYear_sin','monthInYear_cos', 'classification_index'], axis=1)
 
-        # Don't scale pairs
-        p = self.data.pair.copy()
-        self.data = self.data.drop('pair', axis=1)
-
-        # Scaling
+        """ scale OHCLV, MC & TA """
         if self.normalize:
             self.data = pd.DataFrame(scale(self.data),
                                      columns=self.data.columns,
                                      index=self.data.index)
 
-        self.data['pair'] = p  # don't scale pairs
-        self.data = self.data.loc[:, list(self.data.columns)]
-        print(self.data.tail(5))
+        self.data = pd.concat([self.data, df_not_scale], axis=1)
+        print(self.data.describe())
         log.info(self.data.info())
 
     def reset(self):
@@ -153,4 +150,4 @@ class MarketData:
         return obs, done
 
 class main:
-    test = MarketData(coins=['EOS','TRX','ADA','SOL'], path = 'C:/Users/noldec/Desktop/binance')
+    test = MarketData(coins=['EOS','ADA','SOL','TRX'], path = 'C:/Users/noldec/Desktop/binance')
