@@ -145,8 +145,7 @@ class MarketData:
 #            print('Step: ' + str(test))
 #            print(self.offset + self.step)
 #            print(obs)
-#           print(self.data.columns)
-
+#            print(self.data.columns)
 #            print(obs[0])
         return obs, done
 
@@ -295,7 +294,7 @@ class CryptoBot_Environment(gym.Env):
 #        print('TAKES STEP1')
         observation, done = self.data_source.take_step()
         reward, info = self.simulator.take_step(action=action,
-                                                market_return=observation[11])
+                                                market_return=observation[6])
         return observation, reward, done, info
 
     def reset(self):
