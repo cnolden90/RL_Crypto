@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import scale
 import pandas_ta as pta
+import fear_and_greed
 
 #import gym
 #import tempfile
@@ -43,10 +44,6 @@ class MarketData:
         fng_index = fng_index[(fng_index['date'] > pd.to_datetime(self.datemin)) & (fng_index['date'] < pd.to_datetime(self.datemax)) ]
         fng_index = fng_index.set_index('date')
         fng_index = fng_index.drop('classification', axis=1)
-
-        """ loads FEAR AND GREED for Stocks """
-
-        """ loads BTC Dominance """
 
         """ load OHCLV  for coins """
         for coin in self.coins:
@@ -143,7 +140,7 @@ class MarketData:
         self.step = 0
 
     def take_step(self):
-        """Returns data for current trading units and done signal"""
+        """Returns data for current trading day and done signal"""
         obs = self.data.iloc[self.offset + self.step].values
         self.step += 1
         done = self.step > self.trading_days
