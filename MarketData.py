@@ -11,11 +11,12 @@ log.setLevel(logging.INFO)
 log.info('%s logger started.', __name__)
 
 class MarketData:
-    def __init__(self, path, trading_units=252, coins=['EOS'], normalize=True, date_min = '2020-12-01', date_max = '2021-12-31', taIndicator=False, existingData=False, saveData=False):
+    def __init__(self, path, trading_units=252, coins=['EOS'], normalize=True, date_min = '2020-12-01', date_max = '2021-12-31', taIndicator=False, existingData=False, saveData=False, candles=5):
             self.coins = coins
             self.trading_units = trading_units
             self.normalize = normalize
             self.path = path
+            self.candles=candles
             self.datemin = date_min
             self.datemax = date_max
             self.taIndicator = taIndicator
@@ -32,7 +33,7 @@ class MarketData:
         """ loads existing preprocessed file """
         if(self.existingData):
             log.info('loading existing and preprocessed data...'.format(coin))
-            existing_data = pd.read_csv('%s/done_data.csv' % self.path)
+            existing_data = pd.read_csv('%s/done_data_%sm.csv' % (self.path, coin, self.candles))
             log.info('got existing and preprocessed data...')
             return existing_data
         """ loads FEAR AND GREED for Crypto """
@@ -50,7 +51,7 @@ class MarketData:
         log.info('loading data for {}...'.format(coin))
 
         """loads OHCLV data for coin"""
-        ohclv = pd.read_json('%s/%s_USDT-5m.json' % (self.path, coin))
+        ohclv = pd.read_json('%s/%s_USDT-%sm.json' % (self.path, coin, self.candles))
         ohclv.columns =['date_raw','open', 'high', 'low', 'close','volume']
         """ loads marketcap data for coin """
         marketcap = pd.read_csv('%s/%s-usd-max.csv' % (self.path, coin))
@@ -113,7 +114,7 @@ class MarketData:
                 data = data.set_index('date_time')
 
                 """ make data stationary: OHCLV &  MC (+TA)"""
-                make_stationary = ['open','high','close','low','volume','market_cap']
+                make_stationary = ['open','high','close','low','volume']
                 columns_to_drop = ['date','snapped_at', 'total_volume','price','date_raw', 'timeOfDay', 'dayOfWeek', \
                    'monthInYear', 'dayInYear', 'open', 'close', 'high', 'low', 'volume', \
                    'market_cap', 'open_log', 'high_log', 'close_log', 'low_log', 'volume_log', \
@@ -127,6 +128,15 @@ class MarketData:
                     data['%s_log'% column] = np.log(data['%s' % column])
                     data['%s_log_diff' % column] = data['%s_log'% column] - data['%s_log'% column].shift(1)
 
+                """ special case marketcap due to daily data """
+                data['market_cap_log'] = np.log(data['market_cap'])
+
+                """ different lookback for 1m or 5 m candeles ((60m/5m) * 24h = 288 / (60m/ 1m) *24h = 1440 """
+                if(self.candles==1):
+                    data['market_cap_log_diff'] = data['market_cap_log'] - data['market_cap_log'].shift(1440)
+                else:
+                    data['market_cap_log_diff'] = data['market_cap_log'] - data['market_cap_log'].shift(288)
+
                 """ clean dataframe """
                 data = data.drop(columns_to_drop, axis=1)
 
@@ -134,5 +144,5 @@ class MarketData:
                 self.data = self.data.append(data)
 
         if(self.saveData):
-            filepath = Path('%s/done_data.csv' % self.path)
+            filepath = Path('%s/done_data_%sm.csv' % (self.path, self.candles))
             self.data.to_csv(filepath, index=True)
