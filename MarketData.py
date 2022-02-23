@@ -33,7 +33,7 @@ class MarketData:
         """ loads existing preprocessed file """
         if(self.existingData):
             log.info('loading existing and preprocessed data...'.format(coin))
-            existing_data = pd.read_csv('%s/done_data_%sm.csv' % (self.path, coin, self.candles))
+            existing_data = pd.read_csv('%s/done_data_%sm.csv' % (self.path, self.candles))
             log.info('got existing and preprocessed data...')
             return existing_data
         """ loads FEAR AND GREED for Crypto """
@@ -130,13 +130,13 @@ class MarketData:
 
                 """ special case marketcap due to daily data """
                 data['market_cap_log'] = np.log(data['market_cap'])
-
+                
                 """ different lookback for 1m or 5 m candeles ((60m/5m) * 24h = 288 / (60m/ 1m) *24h = 1440 """
                 if(self.candles==1):
                     data['market_cap_log_diff'] = data['market_cap_log'] - data['market_cap_log'].shift(1440)
                 else:
                     data['market_cap_log_diff'] = data['market_cap_log'] - data['market_cap_log'].shift(288)
-
+                
                 """ clean dataframe """
                 data = data.drop(columns_to_drop, axis=1)
 
