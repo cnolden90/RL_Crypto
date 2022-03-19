@@ -11,12 +11,11 @@ from preprocessors.preprocessors import Preprocessors as pp
 
 class MarketData:
     
-    def fetch_data(coins=['EOS'], candles="1h"):
+    def fetch_data(startdate, coins=['EOS'], candles="1h"):
         cdd = CryptoDataDownload()
         data = pd.DataFrame()
         for coin in coins:
             coin_data = cdd.fetch("Binance", "USDT", coin, candles).add_prefix("%s:" % coin)
-            coin_data = pp.preprocess_cylicial_features(coin_data[coin_data['%s:date' % coin] >= pd.to_datetime('2020-01-01 00:00:00')],coin)
             data = pd.concat((data,coin_data), axis=1)
         return data
 
