@@ -1,8 +1,7 @@
-from stock_metadata import *
+from coins_metadata import *
 import tweepy
 import time
 from twitter_keys import *
-from stock_metadata import company_and_ticks
 import argparse
 import re
 # init server
@@ -14,16 +13,21 @@ class TweetStreamListener(tweepy.Stream):
 
     def __init__(self, topic, hosts, end_date):
         self.backoff_timeout = 1
-        super(TweetStreamListener,self).__init__()
+        super(TweetStreamListener,self).__init__(
+           twit_keys["app_key"],
+           twit_keys["app_secret"],
+           twit_keys["oauth_token"],
+           twit_keys["oauth_token_secret"]       
+            )
         self.query_string = list()
         self.end_date = end_date
-        self.query_string.extend(list(company_and_ticks.keys()))
+        self.query_string.extend(list(coins_and_ticks.keys()))
         self.topic = topic
         self.producer = None
         self.start_time = time.time()
         self.count = 0
         if self.topic:
-            self.producer = KafkaProducer(bootstrap_servers=hosts, api_version=(0, 10))
+               self.producer = KafkaProducer(bootstrap_servers=hosts, api_version=(0, 10))
 
         #self.query_string.extend(list(company_and_ticks.values()))
         #self.query_string.remove("V")
@@ -74,7 +78,7 @@ class TweetStreamListener(tweepy.Stream):
                 if tweet_text.lower().find(q_string.lower()) != -1:
                     tweet_data = {
                         "text": TweetStreamListener.sanitize_text(tweet_text),
-                        "ticker": company_and_ticks[q_string],
+                        "ticker": coins_and_ticks[q_string],
                         "date":self.end_date,
                         "timestamp": math.ceil(status.created_at.timestamp()*1e3)
                     }
@@ -97,35 +101,36 @@ class TwitterStreamer:
         self.twitter_api = None
         self.__get_twitter_connection()
         self.listener = TweetStreamListener(topic, hosts,end_date)
-        self.tweet_stream = tweepy.Stream(auth=self.twitter_api.auth, listener=self.listener, tweet_mode='extended')
+        self.tweet_stream = tweepy.Stream(                     
+           twit_keys["app_key"],
+           twit_keys["app_secret"],
+           twit_keys["oauth_token"],
+           twit_keys["oauth_token_secret"]   )
 
     def __get_twitter_connection(self):
         try:
-            auth = tweepy.OAuthHandler(tw_access_key, tw_secret_key)
-            auth.set_access_token(tw_access_token, tw_access_token_secret)
+            auth = tweepy.OAuthHandler(twit_keys["app_key"], twit_keys["app_secret"])
+            auth.set_access_token(twit_keys["oauth_token"], twit_keys["oauth_token_secret"])
             self.twitter_api = tweepy.API(auth, wait_on_rate_limit=True)
         except Exception as e:
             print("Exception occurred : {0}".format(e))
 
     def start_tweet_streaming(self):
         # start stream to listen to company tweets
-
         self.listener.set_start_time()
         self.tweet_stream.filter(track=self.listener.query_string, languages=['en'])
 
 if __name__=="__main__":
 
-    print("JH")
     #init twitter connection
     parser = argparse.ArgumentParser(description='Stream tweets to stdout or kafka topic')
-    parser.add_argument('topic', metavar='<BTC>', help='Kafka topic name')
-    parser.add_argument('hosts', nargs='+', metavar='<hosts>', help='Space separated list of Hostname:port of bootstrap servers')
-    parser.add_argument('-d', '--date', metavar='<date>', help='date to associate with message')
-    topic = None
-    args = parser.parse_args()
+    parser.add_argument('topic', metavar='Crypto', help='Kafka topic name')
+    parser.add_argument('hosts', nargs='+', metavar='Servername', help='Space separated list of Hostname:port of bootstrap servers')
+    parser.add_argument('-d', '--date', metavar='2021-12-01', help='date to associate with message')
+    args2 =  ['BTC', 'Test', '2021-12-01']
+    args = parser.parse_args(args2)
     if args.topic is not None:
         topic = args.topic
-
     if args.date:
         twitter_streamer = TwitterStreamer(topic, args.hosts, args.date)
     else:
