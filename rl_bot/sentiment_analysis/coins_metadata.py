@@ -1,4 +1,7 @@
 coins_and_ticks = {
-      "BTC": "Bitcoin" 
+      "ADA": "Cardano", 
+      "SOL": "Solana", 
+      "TRX": "Tron", 
+      "EOS": "Eos"
 }
 
