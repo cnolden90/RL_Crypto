@@ -21,21 +21,20 @@ import csv #Import csv
 import requests
 import json
 import pandas as pd
+import os  
 
 
-BEARER_TOKEN = twit_keys['BEARER_TOKEN']
 #define search twitter function
-def search_twitter(query, tweet_fields, bearer_token = BEARER_TOKEN):
+def search_twitter(query, tweet_fields, fromDate, toDate, bearer_token):
     headers = {"Authorization": "Bearer {}".format(bearer_token)}
-    url ="https://api.twitter.com/1.1/tweets/search/fullarchive/production.json?query={}&fromDate=202102190000&toDate=202102210000&maxResults=10".format(
-        query
+    url ="https://api.twitter.com/1.1/tweets/search/fullarchive/production.json?query={}&fromDate={}&toDate={}&maxResults=10".format(
+        query,fromDate,toDate
         )
     #url ="https://api.twitter.com/2/tweets/search/all?query=query&tweet.fields=created_at&expansions=author_id&user.fields=created_at"
     #url = "https://api.twitter.com/2/tweets/search/all?query={}&{}&start_time=2021-03-14T19:59:10.000Z&end_time=2022-03-15T19:59:10.000Z".format(
      #   query, tweet_fields
     #)
     response = requests.request("GET", url, headers=headers)
-    print(response)
     if response.status_code != 200:
         raise Exception(response.status_code, response.text)
     return response.json()
@@ -96,7 +95,42 @@ if __name__=="__main__":
     tweet_fields = "tweet.fields=text,author_id,created_at"
     #max_results  = "max_results=1000"
     #twitter api call
-    json_response = search_twitter(query=query, tweet_fields=tweet_fields, bearer_token=BEARER_TOKEN)
+    BEARER_TOKEN = twit_keys['BEARER_TOKEN']
+    count = 0
+    # for x in range(0,400):
+    #     if(count<49):
+    #         BEARER_TOKEN = twit_keys['BEARER_TOKEN']
+    #     if(count >= 50 and count <= 99):
+    #         BEARER_TOKEN = twit_keys['BEARER_TOKEN']
+    #     if(count <= 149 and  count >= 100):
+    #         BEARER_TOKEN = twit_keys['BEARER_TOKEN']
+    #     if(count <= 199 and  count >= 150):
+    #         BEARER_TOKEN = twit_keys['BEARER_TOKEN']
+    #     if(count <= 249 and  count >= 200):
+    #         BEARER_TOKEN = twit_keys['BEARER_TOKEN']
+        
+    json_response = search_twitter(query=query, tweet_fields=tweet_fields, fromDate="202102190000",toDate="202102210000", bearer_token=BEARER_TOKEN)
+    df = pd.DataFrame()
+    for index in range(len(json_response['results'])):
+          new_row = {'Date':json_response['results'][index]['created_at'], 
+                    'Text': json_response['results'][index]['text'],
+                    'Ticker': ""}
+          df = df.append(new_row, ignore_index=True)
+     
+    cwd = os.getcwd()
+    df.to_csv(index=False)
+    sentiment_historic = os.path.join(cwd, 'sentiment_historic_%s.csv' % count)
+    df.to_csv(sentiment_historic, index=True, encoding="utf-8") 
+    count = count + 1
+        
+        
+        
+        
+        
+        
+        
+        
+        
     #pretty printing
     #print(json.dumps(json_response, indent=4, sort_keys=True))
     
