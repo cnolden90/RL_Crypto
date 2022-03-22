@@ -3,17 +3,29 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from transformers import pipeline
 import torch
 import numpy as np
-
+import datetime
+import math
+import time
+import pandas as pd
 
 
 model_name = "ProsusAI/finbert"
 model = AutoModelForSequenceClassification.from_pretrained(model_name)
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 classifier = pipeline('sentiment-analysis', model=model, tokenizer=tokenizer)
+coins = ['Cardano', 'Solana', 'Tron', 'Eos']
 
-dic={'MMM':0,'AXP':0,'AMGN':0,'AAPL':0,'BA':0,'CAT':0,'CVX':0,'CSCO':0,'KO':0,'DIS':0,'DOW':0,'GS':0,'HD':0,'HON':0,'IBM':0,'INTC':0,'JNJ':0,'JPM':0,'MCD':0,'MRK':0,'MSFT':0,'NKE':0,'PG':0,'CRM':0,'TRV':0,'UNH':0,'VZ':0,'V':0,'WBA':0,'WMT':0}
+dic={'Cardano':0, 'Solana':0, 'Tron':0, 'Eos':0}
 
 
+def generate_sentiment_scores(start_date,end_date,tickers=coins,time_fmt="%Y-%m-%d"):
+    dates = pd.date_range(start_date,end_date).to_pydatetime()
+    dates = np.array([datetime.datetime.strftime(r,time_fmt) for r in dates])
+    data = np.array(np.meshgrid(dates,tickers)).T.reshape(-1,2)
+    scores = np.zeros(shape=(len(data),1))
+    df = pd.DataFrame(data,columns=['date','tic'])
+    df['sentiment'] = scores
+    return df
 
 
 def get_sentiment_score(sentence, stock):
@@ -25,10 +37,10 @@ def get_sentiment_score(sentence, stock):
     sentiment_score=0
     for i in out:
        # print(i['label'])
-        if(i['label']=='POSITIVE'):
+        if(i['label']=='positive'):
             pos=i['score']
        #     print(pos)
-        elif(i['label']=='NEGATIVE'):
+        elif(i['label']=='negative'):
             neg=i['score']
        #     print(neg)
         else:
@@ -71,3 +83,16 @@ def init_from_file():
 def save_to_file():
     global dic
     json.dump(dic, open("sentiment_scores.json","w"))
+    
+    
+if __name__=="__main__":
+    sentiment_df = generate_sentiment_scores('2022-03-22', '2022-03-22')
+    new_sentiment = generate_sentiment_scores('2022-03-22', '2022-03-22')
+    df = pd.read_csv('OutputStreaming8.csv', sep=';')
+    init_from_file()
+    for index, row in df.iterrows():
+        scores = get_sentiment_score(row['Text'][:500], row['Ticker'])
+        print("Computed score {0} for stock ticker {1}".format(scores[row['Ticker']], row['Ticker']))
+        # construct new sentiment df
+        new_sentiment['sentiment'] = scores.values()
+        
