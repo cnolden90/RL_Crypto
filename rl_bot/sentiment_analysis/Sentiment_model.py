@@ -7,6 +7,7 @@ import datetime
 import math
 import time
 import pandas as pd
+import datetime
 
 
 model_name = "ProsusAI/finbert"
@@ -86,13 +87,24 @@ def save_to_file():
     
     
 if __name__=="__main__":
-    sentiment_df = generate_sentiment_scores('2022-03-22', '2022-03-22')
-    new_sentiment = generate_sentiment_scores('2022-03-22', '2022-03-22')
-    df = pd.read_csv('OutputStreaming8.csv', sep=';')
+    start_date = datetime.date(2022, 3,21)
+    end_date = datetime.date(2022, 3,22)
     init_from_file()
-    for index, row in df.iterrows():
-        scores = get_sentiment_score(row['Text'][:500], row['Ticker'])
-        print("Computed score {0} for stock ticker {1}".format(scores[row['Ticker']], row['Ticker']))
-        # construct new sentiment df
-        new_sentiment['sentiment'] = scores.values()
-        
+    
+    
+    df = pd.read_csv('OutputStreaming.csv', sep=';')
+    df['Date'] =  pd.to_datetime(df["Date"]).dt.date
+    df =df[(df['Date'] >= start_date) & (df['Date'] <= end_date)]
+    df.set_index('Date', inplace=True)
+    sentiment_df = pd.DataFrame()
+
+    for date in df.index.unique():
+        new_sentiment = generate_sentiment_scores(date, date)
+        temp = df[df.index ==date]
+        for index, row in temp.iterrows():
+            scores = get_sentiment_score(row['Text'][:500], row['Ticker'])
+            print("Computed score {0} for stock ticker {1}".format(scores[row['Ticker']], row['Ticker']))
+            # construct new sentiment df
+            new_sentiment['sentiment'] = scores.values()
+        sentiment_df = pd.concat((sentiment_df,new_sentiment), axis=0)
+        print("++++++++++++++++++++++++++++++++++++")
