@@ -87,12 +87,12 @@ def save_to_file():
     
     
 if __name__=="__main__":
-    start_date = datetime.date(2022, 3,21)
-    end_date = datetime.date(2022, 3,22)
+    start_date = datetime.date(2021, 1,1)
+    end_date = datetime.date(2021, 1, 16)
     init_from_file()
     
     
-    df = pd.read_csv('OutputStreaming.csv', sep=';')
+    df = pd.read_csv('sentiment_historic_full.csv', sep=';')
     df['Date'] =  pd.to_datetime(df["Date"]).dt.date
     df =df[(df['Date'] >= start_date) & (df['Date'] <= end_date)]
     df.set_index('Date', inplace=True)
